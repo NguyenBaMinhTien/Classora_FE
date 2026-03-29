@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Search, Filter, Download, Edit2, Trash2, ChevronLeft, ChevronRight, PlusCircle, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
-import AddCourseDialog from '../components/AddCourseDialog'; // 👈 Thêm
+import AddCourseDialog from '../components/AddCourseDialog';
+import CourseDetailDeleteDialog from '../components/CourseDetailDeleteDialog'; // 👈 Thêm
 
 interface Course {
   _id: string;
@@ -16,7 +17,11 @@ interface Course {
 export default function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // 👈 Thêm
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // 👇 Delete dialog states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   async function getAllCourses() {
     try {
@@ -31,6 +36,11 @@ export default function Courses() {
     }
   }
 
+  function openDeleteDialog(id: string) {
+    setSelectedCourseId(id);
+    setIsDeleteOpen(true);
+  }
+
   useEffect(() => {
     getAllCourses();
   }, []);
@@ -41,10 +51,17 @@ export default function Courses() {
   return (
     <div className="p-10 max-w-[1400px] mx-auto w-full space-y-10">
 
-      {/* 👇 Dialog */}
       <AddCourseDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+        onSuccess={getAllCourses}
+      />
+
+      {/* 👇 Dialog chi tiết + xóa */}
+      <CourseDetailDeleteDialog
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setSelectedCourseId(null); }}
+        courseId={selectedCourseId}
         onSuccess={getAllCourses}
       />
 
@@ -55,8 +72,6 @@ export default function Courses() {
             Hệ thống quản lý thông tin các môn học, tín chỉ và trạng thái vận hành của các học phần trong chương trình đào tạo.
           </p>
         </div>
-
-        {/* 👇 Gắn onClick mở dialog */}
         <button
           onClick={() => setIsDialogOpen(true)}
           className="bg-[#10b77f] hover:bg-[#0d9469] text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
@@ -80,10 +95,6 @@ export default function Courses() {
           <button className="flex-1 md:flex-none px-7 py-4 bg-white rounded-2xl flex items-center justify-center gap-2 text-slate-700 font-bold hover:bg-slate-50 transition-all border border-slate-100 shadow-sm hover:shadow-md">
             <Filter className="w-5 h-5" />
             Bộ lọc
-          </button>
-          <button className="flex-1 md:flex-none px-7 py-4 bg-white rounded-2xl flex items-center justify-center gap-2 text-slate-700 font-bold hover:bg-slate-50 transition-all border border-slate-100 shadow-sm hover:shadow-md">
-            <Download className="w-5 h-5" />
-            Xuất Excel
           </button>
         </div>
       </div>
@@ -152,7 +163,12 @@ export default function Courses() {
                         <button className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-[#10b77f] transition-all border border-transparent hover:border-emerald-100">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100">
+
+                        {/* 👇 Click → GET chi tiết rồi mở dialog xóa */}
+                        <button
+                          onClick={() => openDeleteDialog(course._id)}
+                          className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
