@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Search, User, UserPlus, Upload, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { Search, User, UserPlus, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
 import AddLecturerDialog from '../components/AddLecturerDialog';
 import ViewLecturerDialog from '../components/ViewLecturerDialog';
+import EditLecturerDialog from '../components/EditLecturerDialog'; // 👈 Thêm
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,7 @@ interface Lecturer {
   name: string;
   email: string;
   phone: string;
+  phoneNumber?: string;
   role: string;
   createdAt: string;
   updatedAt: string;
@@ -24,7 +26,11 @@ export default function Lecturers() {
   const [selectedLecturer, setSelectedLecturer] = useState<any>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
 
-  // ✅ delete states
+  // 👇 Edit states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingLecturer, setEditingLecturer] = useState<Lecturer | null>(null);
+
+  // Delete states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -45,18 +51,17 @@ export default function Lecturers() {
   async function getLecturerById(id: string) {
     try {
       const res = await api.get(`/users/${id}`);
+      console.log(res.data.data);
       if (res.data.success) {
         const data = res.data.data;
-
         setSelectedLecturer({
           name: data.name,
           email: data.email,
-          phone: data.phone,
+          phone: data.phone || data.phoneNumber,
           avatar: null,
           role: data.role,
           createdAt: data.createdAt
         });
-
         setIsViewOpen(true);
       }
     } catch (error) {
@@ -64,21 +69,22 @@ export default function Lecturers() {
     }
   }
 
-  // ✅ mở dialog delete
+  // 👇 Mở Edit dialog với lecturer được chọn
+  function openEditDialog(lecturer: Lecturer) {
+    setEditingLecturer(lecturer);
+    setIsEditOpen(true);
+  }
+
   function openDeleteDialog(id: string) {
     setSelectedId(id);
     setIsDeleteOpen(true);
   }
 
-  // ✅ handle delete
   async function handleDelete() {
     if (!selectedId) return;
-
     try {
       setIsDeleting(true);
-
       const res = await api.delete(`/users/${selectedId}`);
-
       if (res.data.success) {
         setLecturers(prev => prev.filter(l => l._id !== selectedId));
         toast.success("Xóa giảng viên thành công");
@@ -102,12 +108,21 @@ export default function Lecturers() {
       <AddLecturerDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+        onSuccess={getAllLectures}
       />
 
       <ViewLecturerDialog
         isOpen={isViewOpen}
         onClose={() => setIsViewOpen(false)}
         lecturer={selectedLecturer}
+      />
+
+      {/* 👇 EditLecturerDialog */}
+      <EditLecturerDialog
+        isOpen={isEditOpen}
+        onClose={() => { setIsEditOpen(false); setEditingLecturer(null); }}
+        onSuccess={getAllLectures}
+        lecturer={editingLecturer}
       />
 
       <DeleteConfirmDialog
@@ -123,7 +138,6 @@ export default function Lecturers() {
           <p className="mt-2 text-base text-slate-500">Danh sách đầy đủ tất cả giảng viên, đơn vị trực thuộc và trạng thái tài khoản.</p>
         </div>
         <div className="mt-6 sm:mt-0 flex flex-wrap items-center gap-3">
-
           <button
             onClick={() => setIsDialogOpen(true)}
             className="inline-flex items-center justify-center px-5 py-2.5 border border-transparent text-sm font-bold rounded-xl shadow-lg shadow-emerald-100 text-white bg-[#10b77f] hover:bg-[#0d9469] transition-all"
@@ -184,7 +198,6 @@ export default function Lecturers() {
                 <th className="px-6 py-4 text-center text-xs font-bold text-slate-900 uppercase tracking-widest sticky right-0 bg-slate-50 z-20 w-[150px] shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">Thao tác</th>
               </tr>
             </thead>
-
             <tbody className="bg-transparent divide-y divide-slate-50">
               {isLoading ? (
                 [...Array(4)].map((_, i) => (
@@ -212,28 +225,22 @@ export default function Lecturers() {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-bold text-slate-900 truncate max-w-[150px]">{lecturer.name}</div>
-
                         </div>
                       </div>
                     </td>
-
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="text-sm text-slate-600 truncate">{lecturer.email}</div>
                     </td>
-
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="text-sm text-slate-600">{lecturer.phoneNumber || lecturer.phone}</div>
                     </td>
-
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
                         {lecturer.role === 'teacher' ? 'Giảng viên' : lecturer.role}
                       </span>
                     </td>
-
                     <td className="px-6 py-5 whitespace-nowrap text-center sticky right-0 bg-white group-hover:bg-slate-50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center justify-center space-x-2">
-
                         <button
                           onClick={() => getLecturerById(lecturer._id)}
                           className="p-2 text-slate-400 hover:text-[#10b77f] hover:bg-emerald-50 rounded-lg transition-all"
@@ -241,10 +248,13 @@ export default function Lecturers() {
                           <User className="h-4 w-4" />
                         </button>
 
-                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                        {/* 👇 Click Edit → openEditDialog */}
+                        <button
+                          onClick={() => openEditDialog(lecturer)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        >
                           <Edit2 className="h-4 w-4" />
                         </button>
-
 
                         <button
                           onClick={() => openDeleteDialog(lecturer._id)}
@@ -252,7 +262,6 @@ export default function Lecturers() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
-
                       </div>
                     </td>
                   </motion.tr>

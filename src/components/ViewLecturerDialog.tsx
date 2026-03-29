@@ -8,6 +8,7 @@ interface ViewLecturerDialogProps {
     lecturer: {
         name: string;
         email: string;
+        phoneNumber?: string;
         phone?: string;
         avatar?: string | null;
         role?: string;
@@ -132,7 +133,7 @@ export default function ViewLecturerDialog({ isOpen, onClose, lecturer }: ViewLe
 
                                 <InfoField
                                     label="Số điện thoại"
-                                    value={lecturer.phone}
+                                    value={lecturer.phoneNumber || lecturer.phone}
                                     icon={Phone}
                                     canCopy
                                 />
