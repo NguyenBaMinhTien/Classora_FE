@@ -1,21 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Download, Edit2, Trash2, ChevronLeft, ChevronRight, PlusCircle, Users, Clock, BookOpen } from 'lucide-react';
+import { Search, Filter, Download, Edit2, Trash2, ChevronLeft, ChevronRight, PlusCircle, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
+import AddCourseDialog from '../components/AddCourseDialog'; // 👈 Thêm
 
 interface Course {
   _id: string;
-  title: string;
+  courseName: string;
   description: string;
-  price: number;
-  maxStudent: number;
-  duration: string;
-  imgURL: string;
-  startDate: string;
-  endDate: string;
-  numberEnroll: number;
-  teacherId: string;
-  studentIds: string[];
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +16,7 @@ interface Course {
 export default function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false); // 👈 Thêm
 
   async function getAllCourses() {
     try {
@@ -41,16 +35,19 @@ export default function Courses() {
     getAllCourses();
   }, []);
 
-  // Format tiền VNĐ
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-
-  // Format ngày
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('vi-VN');
 
   return (
     <div className="p-10 max-w-[1400px] mx-auto w-full space-y-10">
+
+      {/* 👇 Dialog */}
+      <AddCourseDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSuccess={getAllCourses}
+      />
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
         <div className="space-y-3">
           <h2 className="text-4xl font-black tracking-tight text-slate-900">Danh sách khóa học</h2>
@@ -58,7 +55,12 @@ export default function Courses() {
             Hệ thống quản lý thông tin các môn học, tín chỉ và trạng thái vận hành của các học phần trong chương trình đào tạo.
           </p>
         </div>
-        <button className="bg-[#10b77f] hover:bg-[#0d9469] text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap">
+
+        {/* 👇 Gắn onClick mở dialog */}
+        <button
+          onClick={() => setIsDialogOpen(true)}
+          className="bg-[#10b77f] hover:bg-[#0d9469] text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
+        >
           <PlusCircle className="w-6 h-6" />
           Thêm khóa học mới
         </button>
@@ -88,16 +90,14 @@ export default function Courses() {
 
       {/* Data Table */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto [overflow-x-auto scrollbar-hide::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[overflow-x-auto scrollbar-hide::-webkit-scrollbar-thumb]:bg-slate-400">
-          <table className="w-full text-left border-collapse min-w-[1200px] table-fixed">
+        <div className="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+          <table className="w-full text-left border-collapse min-w-[900px] table-fixed">
             <thead>
               <tr className="bg-slate-50 text-slate-500 uppercase text-xs font-bold tracking-widest border-b border-slate-100">
-                <th className="px-8 py-6 sticky left-0 bg-slate-50 z-20 w-[280px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Tên khóa học</th>
-                <th className="px-8 py-6 w-[160px]">Thời hạn</th>
-                <th className="px-8 py-6 w-[160px]">Học phí</th>
-                <th className="px-8 py-6 w-[180px]">Ngày bắt đầu</th>
-                <th className="px-8 py-6 w-[180px]">Ngày kết thúc</th>
-                <th className="px-8 py-6 w-[160px]">Học viên</th>
+                <th className="px-8 py-6 sticky left-0 bg-slate-50 z-20 w-[320px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Tên khóa học</th>
+                <th className="px-8 py-6 w-[380px]">Mô tả</th>
+                <th className="px-8 py-6 w-[180px]">Ngày tạo</th>
+                <th className="px-8 py-6 w-[180px]">Cập nhật</th>
                 <th className="px-8 py-6 text-right sticky right-0 bg-slate-50 z-20 w-[140px] shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">Thao tác</th>
               </tr>
             </thead>
@@ -107,18 +107,13 @@ export default function Courses() {
                   <tr key={i} className="animate-pulse">
                     <td className="px-8 py-6 sticky left-0 bg-white">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex-shrink-0" />
-                        <div className="space-y-2 flex-1">
-                          <div className="h-3 w-36 bg-slate-100 rounded" />
-                          <div className="h-2 w-24 bg-slate-100 rounded" />
-                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex-shrink-0" />
+                        <div className="h-3 w-36 bg-slate-100 rounded" />
                       </div>
                     </td>
-                    {[...Array(5)].map((_, j) => (
-                      <td key={j} className="px-8 py-6">
-                        <div className="h-3 w-20 bg-slate-100 rounded" />
-                      </td>
-                    ))}
+                    <td className="px-8 py-6"><div className="h-3 w-48 bg-slate-100 rounded" /></td>
+                    <td className="px-8 py-6"><div className="h-3 w-24 bg-slate-100 rounded" /></td>
+                    <td className="px-8 py-6"><div className="h-3 w-24 bg-slate-100 rounded" /></td>
                     <td className="px-8 py-6 sticky right-0 bg-white" />
                   </tr>
                 ))
@@ -131,72 +126,27 @@ export default function Courses() {
                     key={course._id}
                     className="group hover:bg-slate-50/50 transition-all duration-300"
                   >
-                    {/* Tên khóa học + ảnh */}
                     <td className="px-8 py-6 sticky left-0 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                      <div className="flex items-center gap-4">
-                        {/* <img
-                          src={course.imgURL || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=📚'}
-                          alt={course.title}
-                          className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-slate-100"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://placehold.co/48x48/e2e8f0/94a3b8?text=📚';
-                          }}
-                        /> */}
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-slate-900 truncate max-w-[180px] group-hover:text-[#10b77f] transition-colors">
-                            {course.title}
-                          </div>
-                          <div className="text-xs text-slate-400 truncate max-w-[180px] mt-0.5">
-                            {course.description}
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                          <BookOpen className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <div className="text-sm font-bold text-slate-900 truncate max-w-[220px] group-hover:text-[#10b77f] transition-colors">
+                          {course.courseName}
                         </div>
                       </div>
                     </td>
-
-                    {/* Thời hạn */}
                     <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        {course.duration}
+                      <div className="text-sm text-slate-500 truncate max-w-[340px]">
+                        {course.description}
                       </div>
                     </td>
-
-                    {/* Học phí */}
                     <td className="px-8 py-6">
-                      <span className="text-sm font-bold text-emerald-600">
-                        {formatPrice(course.price)}
-                      </span>
+                      <span className="text-sm text-slate-600">{formatDate(course.createdAt)}</span>
                     </td>
-
-                    {/* Ngày bắt đầu */}
                     <td className="px-8 py-6">
-                      <span className="text-sm text-slate-600">{formatDate(course.startDate)}</span>
+                      <span className="text-sm text-slate-600">{formatDate(course.updatedAt)}</span>
                     </td>
-
-                    {/* Ngày kết thúc */}
-                    <td className="px-8 py-6">
-                      <span className="text-sm text-slate-600">{formatDate(course.endDate)}</span>
-                    </td>
-
-                    {/* Học viên / Max */}
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        <div>
-                          <span className="text-sm font-bold text-slate-900">{course.numberEnroll}</span>
-                          <span className="text-xs text-slate-400">/{course.maxStudent}</span>
-                        </div>
-                        {/* Progress bar */}
-                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 rounded-full"
-                            style={{ width: `${Math.min((course.numberEnroll / course.maxStudent) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Thao tác */}
                     <td className="px-8 py-6 text-right sticky right-0 bg-white group-hover:bg-slate-50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                         <button className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-[#10b77f] transition-all border border-transparent hover:border-emerald-100">
