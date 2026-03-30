@@ -8,6 +8,7 @@ import Courses from './pages/Courses';
 import Schedules from './pages/Schedules';
 import Rooms from './pages/Rooms';
 import Profile from './pages/Profile';
+import LecturerSchedule from './pages/LecturerSchedule';
 import EditProfile from './pages/EditProfile';
 import Login from './pages/Login';
 import { motion, AnimatePresence } from 'motion/react';
@@ -66,6 +67,7 @@ export default function App() {
                 <Route path="/rooms" element={<Rooms />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/edit-profile" element={<EditProfile />} />
+                <Route path="/lecturer-schedule" element={<LecturerSchedule />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </motion.div>
