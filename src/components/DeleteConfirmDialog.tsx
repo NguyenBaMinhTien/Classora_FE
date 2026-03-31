@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 
-export default function DeleteConfirmDialog({ isOpen, onClose, onConfirm, isLoading }: any) {
+export default function DeleteConfirmDialog({ isOpen, onClose, onConfirm, isLoading, title = "Xác nhận xóa", message = "Bạn có chắc chắn muốn xóa mục này không?" }: any) {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -24,14 +24,14 @@ export default function DeleteConfirmDialog({ isOpen, onClose, onConfirm, isLoad
                         className="bg-white p-6 rounded-2xl w-full max-w-md space-y-4 relative z-10"
                     >
                         <div className="flex justify-between items-center">
-                            <h3 className="font-bold text-slate-900">Xác nhận xóa</h3>
+                            <h3 className="font-bold text-slate-900">{title}</h3>
                             <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
                                 <X />
                             </button>
                         </div>
 
                         <p className="text-slate-500">
-                            Bạn có chắc chắn muốn xóa giảng viên này không?
+                            {message}
                         </p>
 
                         <div className="flex justify-end gap-2">
