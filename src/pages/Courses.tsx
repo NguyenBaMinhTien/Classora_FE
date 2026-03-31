@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Download, Edit2, Trash2, ChevronLeft, ChevronRight, PlusCircle, BookOpen } from 'lucide-react';
+import { Search, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, PlusCircle, BookOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
 import AddCourseDialog from '../components/AddCourseDialog';
-import CourseDetailDeleteDialog from '../components/CourseDetailDeleteDialog'; // 👈 Thêm
+import EditCourseDialog from '../components/EditCourseDialog';
+import CourseDetailDeleteDialog from '../components/CourseDetailDeleteDialog';
 
 interface Course {
   _id: string;
@@ -19,16 +20,16 @@ export default function Courses() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // 👇 Delete dialog states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   async function getAllCourses() {
     try {
       const res = await api.get("/courses");
-      if (res.data.success) {
-        setCourses(res.data.data);
-      }
+      if (res.data.success) setCourses(res.data.data);
     } catch (error) {
       console.error("Lỗi tải danh sách khóa học:", error);
     } finally {
@@ -36,14 +37,17 @@ export default function Courses() {
     }
   }
 
+  function openEditDialog(course: Course) {
+    setEditingCourse(course);
+    setIsEditOpen(true);
+  }
+
   function openDeleteDialog(id: string) {
     setSelectedCourseId(id);
     setIsDeleteOpen(true);
   }
 
-  useEffect(() => {
-    getAllCourses();
-  }, []);
+  useEffect(() => { getAllCourses(); }, []);
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('vi-VN');
@@ -57,7 +61,13 @@ export default function Courses() {
         onSuccess={getAllCourses}
       />
 
-      {/* 👇 Dialog chi tiết + xóa */}
+      <EditCourseDialog
+        isOpen={isEditOpen}
+        onClose={() => { setIsEditOpen(false); setEditingCourse(null); }}
+        onSuccess={getAllCourses}
+        course={editingCourse}
+      />
+
       <CourseDetailDeleteDialog
         isOpen={isDeleteOpen}
         onClose={() => { setIsDeleteOpen(false); setSelectedCourseId(null); }}
@@ -81,7 +91,6 @@ export default function Courses() {
         </button>
       </div>
 
-      {/* Filters & Search */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-5 items-center">
         <div className="relative flex-1 w-full group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b77f] transition-colors" />
@@ -99,7 +108,6 @@ export default function Courses() {
         </div>
       </div>
 
-      {/* Data Table */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
           <table className="w-full text-left border-collapse min-w-[900px] table-fixed">
@@ -148,9 +156,7 @@ export default function Courses() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="text-sm text-slate-500 truncate max-w-[340px]">
-                        {course.description}
-                      </div>
+                      <div className="text-sm text-slate-500 truncate max-w-[340px]">{course.description}</div>
                     </td>
                     <td className="px-8 py-6">
                       <span className="text-sm text-slate-600">{formatDate(course.createdAt)}</span>
@@ -160,11 +166,12 @@ export default function Courses() {
                     </td>
                     <td className="px-8 py-6 text-right sticky right-0 bg-white group-hover:bg-slate-50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <button className="p-2.5 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-[#10b77f] transition-all border border-transparent hover:border-emerald-100">
+                        <button
+                          onClick={() => openEditDialog(course)}
+                          className="p-2.5 rounded-xl hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
-
-                        {/* 👇 Click → GET chi tiết rồi mở dialog xóa */}
                         <button
                           onClick={() => openDeleteDialog(course._id)}
                           className="p-2.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100"
@@ -180,7 +187,6 @@ export default function Courses() {
           </table>
         </div>
 
-        {/* Pagination */}
         <div className="px-10 py-7 flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 gap-6 bg-slate-50/30">
           <p className="text-sm text-slate-500 font-semibold">
             Hiển thị <span className="text-slate-900 font-bold">1–{courses.length}</span> của <span className="text-slate-900 font-bold">{courses.length}</span> khóa học
