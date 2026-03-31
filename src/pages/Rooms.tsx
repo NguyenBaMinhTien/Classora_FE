@@ -2,36 +2,95 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, MapPin, Users, Monitor, Wind, Trash2, Edit2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
+import LocationDialog from '../components/LocationDialog';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import toast from 'react-hot-toast';
 
 export default function Rooms() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const response = await api.get('/locations');
-        if (response.data.success) {
-          const mappedRooms = response.data.data.map((item: any) => ({
-            id: item._id,
-            name: item.room_name,
-            type: 'Phòng học',
-            capacity: 0,
-            building: item.location,
-            status: 'Trống',
-            facilities: []
-          }));
-          setRooms(mappedRooms);
-        }
-      } catch (error) {
-        console.error('Error fetching locations:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Modal states
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogData, setDialogData] = useState<any>(null);
+  
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  const fetchLocations = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/locations');
+      if (response.data.success) {
+        const mappedRooms = response.data.data.map((item: any) => ({
+          id: item._id,
+          name: item.room_name,
+          type: 'Phòng học',
+          capacity: 0,
+          building: item.location,
+          status: 'Trống',
+          facilities: []
+        }));
+        setRooms(mappedRooms);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      toast.error('Lỗi khi tải danh sách phòng học');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLocations();
   }, []);
+
+  const handleCreate = () => {
+    setDialogData(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEdit = async (roomId: string) => {
+    try {
+      const response = await api.get(`/locations/${roomId}`);
+      if (response.data.success) {
+        setDialogData({
+          id: response.data.data._id,
+          room_name: response.data.data.room_name,
+          location: response.data.data.location
+        });
+        setIsDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error fetching location:', error);
+      toast.error('Không thể tải thông tin phòng học');
+    }
+  };
+
+  const handleDeleteClick = (roomId: string) => {
+    setRoomToDelete(roomId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!roomToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await api.delete(`/locations/${roomToDelete}`);
+      if (response.data.success) {
+        toast.success('Xóa phòng học thành công');
+        setIsDeleteDialogOpen(false);
+        setRoomToDelete(null);
+        fetchLocations();
+      }
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      toast.error('Không thể xóa phòng học này');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="p-10 max-w-[1400px] mx-auto w-full space-y-10">
@@ -42,7 +101,7 @@ export default function Rooms() {
             Theo dõi tình trạng sử dụng, cơ sở vật chất và lịch trình của các phòng học trong toàn khuôn viên trường.
           </p>
         </div>
-        <button className="bg-[#10b77f] hover:bg-[#0d9469] text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap">
+        <button onClick={handleCreate} className="bg-[#10b77f] hover:bg-[#0d9469] text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap">
           <Plus className="w-6 h-6" />
           Thêm phòng mới
         </button>
@@ -161,10 +220,10 @@ export default function Rooms() {
                       </td>
                       <td className="px-10 py-8 text-right">
                         <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                          <button className="p-3 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-[#10b77f] transition-all border border-transparent hover:border-emerald-100">
+                          <button onClick={() => handleEdit(room.id)} className="p-3 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-[#10b77f] transition-all border border-transparent hover:border-emerald-100">
                             <Edit2 className="w-5 h-5" />
                           </button>
-                          <button className="p-3 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100">
+                          <button onClick={() => handleDeleteClick(room.id)} className="p-3 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all border border-transparent hover:border-red-100">
                             <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
@@ -177,6 +236,22 @@ export default function Rooms() {
           </table>
         </div>
       </div>
+      
+      <LocationDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSuccess={fetchLocations}
+        initialData={dialogData}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+        title="Xác nhận xóa phòng học"
+        message="Bạn có chắc chắn muốn xóa phòng học này không? Hành động này không thể hoàn tác."
+      />
     </div>
   );
 }
