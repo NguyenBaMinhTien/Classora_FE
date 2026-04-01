@@ -35,7 +35,10 @@ export default function Sidebar() {
   return (
     <aside className="w-72 bg-white border-r border-slate-100 flex flex-col h-screen sticky top-0">
 
-      <NavLink to="/dashboard" className="p-8 flex items-center gap-3 hover:opacity-90 transition">
+      <NavLink
+        to={role === 'teacher' ? '/schedule' : '/dashboard'}
+        className="p-8 flex items-center gap-3 hover:opacity-90 transition"
+      >
         <div className="w-15 h-15 rounded-xl overflow-hidden shadow-lg">
           <img src={logo} alt="Logo" className="w-full h-full object-contain" />
         </div>
