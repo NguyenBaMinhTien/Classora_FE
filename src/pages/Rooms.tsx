@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MapPin, Users, Monitor, Wind, Trash2, Edit2, Loader2 } from 'lucide-react';
+import { Search, Plus, MapPin, Trash2, Edit2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../services/api';
 import LocationDialog from '../components/LocationDialog';
@@ -26,11 +26,7 @@ export default function Rooms() {
         const mappedRooms = response.data.data.map((item: any) => ({
           id: item._id,
           name: item.room_name,
-          type: 'Phòng học',
-          capacity: 0,
-          building: item.location,
-          status: 'Trống',
-          facilities: []
+          location: item.location
         }));
         setRooms(mappedRooms);
       }
@@ -133,24 +129,22 @@ export default function Rooms() {
           <table className="w-full text-left border-collapse min-w-[1000px] table-fixed">
             <thead>
               <tr className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-[0.2em] border-b border-slate-100">
-                <th className="px-10 py-6 w-[200px]">Tên Phòng</th>
-                <th className="px-10 py-6 w-[250px]">Loại Phòng</th>
-                <th className="px-10 py-6 w-[150px]">Sức chứa</th>
-                <th className="px-10 py-6 w-[200px]">Trạng thái</th>
+                <th className="px-10 py-6 w-[350px]">Tên Phòng</th>
+                <th className="px-10 py-6">Vị trí</th>
                 <th className="px-10 py-6 w-[200px] text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center">
+                  <td colSpan={3} className="px-10 py-20 text-center">
                     <Loader2 className="w-8 h-8 text-[#10b77f] animate-spin mx-auto" />
                     <p className="text-slate-500 mt-4 font-bold">Đang tải dữ liệu...</p>
                   </td>
                 </tr>
               ) : rooms.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center text-slate-500 font-bold">
+                  <td colSpan={3} className="px-10 py-20 text-center text-slate-500 font-bold">
                     Không có dữ liệu phòng học.
                   </td>
                 </tr>
@@ -181,42 +175,14 @@ export default function Rooms() {
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 text-lg">{room.name}</div>
-                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">{room.building}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="text-slate-700 font-bold">{room.type}</div>
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {room.facilities.length > 0 ? room.facilities.map((f: string) => (
-                            <span key={f} className="text-[9px] font-black uppercase tracking-tighter bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
-                              {f}
-                            </span>
-                          )) : (
-                            <span className="text-[9px] font-black uppercase tracking-tighter bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
-                              Chưa có
-                            </span>
-                          )}
+                        <div className="flex items-center gap-2 text-slate-600 font-medium">
+                          <MapPin className="w-4 h-4 text-[#10b77f]" />
+                          {room.location}
                         </div>
-                      </td>
-                      <td className="px-10 py-8">
-                        <div className="flex items-center gap-2 text-slate-600 font-bold">
-                          <Users className="w-4 h-4 text-slate-300" />
-                          {room.capacity} chỗ
-                        </div>
-                      </td>
-                      <td className="px-10 py-8">
-                        <span className={`inline-flex items-center gap-2 py-2 px-5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all ${room.status === 'Trống'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : room.status === 'Đang sử dụng'
-                            ? 'bg-blue-50 text-blue-700 border-blue-100'
-                            : 'bg-orange-50 text-orange-600 border-orange-100'
-                          }`}>
-                          <span className={`w-2 h-2 rounded-full ${room.status === 'Trống' ? 'bg-emerald-600 animate-pulse' :
-                            room.status === 'Đang sử dụng' ? 'bg-blue-600' : 'bg-orange-400'
-                            }`}></span>
-                          {room.status}
-                        </span>
                       </td>
                       <td className="px-10 py-8 text-right">
                         <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
