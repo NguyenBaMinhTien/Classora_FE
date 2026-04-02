@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext'; // 👈 Thêm
 
 // ─── Types ────────────────────────────────────────────────────
 interface Session {
@@ -88,9 +89,10 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
     if (!form.session_date || !form.time) return null;
     const conflicts = existingEvents.filter(ev => {
       if (editSession && ev._id === editSession._id) return false;
-      const evDate = new Date(ev.session_date);
-      const fmDate = new Date(form.session_date);
-      const sameDay = evDate.getUTCFullYear() === fmDate.getUTCFullYear() && evDate.getUTCMonth() === fmDate.getUTCMonth() && evDate.getUTCDate() === fmDate.getUTCDate();
+      // So sánh ngày bằng chuỗi "YYYY-MM-DD" để tránh lệch timezone
+      const evDateStr = ev.session_date.slice(0, 10);
+      const fmDateStr = form.session_date.slice(0, 10);
+      const sameDay = evDateStr === fmDateStr;
       return sameDay && ev.time === form.time && (ev.roomid === form.roomid || ev.userid === form.userid);
     });
     if (!conflicts.length) return null;
@@ -246,6 +248,8 @@ function DeleteDialog({ isOpen, onClose, onConfirm, isLoading }: { isOpen: boole
 // ─── Main Component ───────────────────────────────────────────
 export default function Schedules() {
   const today = new Date();
+  const { role } = useAuth(); // 👈 Lấy role
+  const isAdmin = role === 'admin'; // 👈 Kiểm tra admin
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null); // 👈 filter by room
@@ -308,17 +312,23 @@ export default function Schedules() {
   const isToday = (day: number) => day === today.getDate() && currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();
 
   // Filter events by selected room + current month
+  // Parse ISO date sang local time để tránh lệch timezone UTC+7
+  const parseLocalDate = (iso: string) => {
+    const d = new Date(iso);
+    return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() };
+  };
+
   const filteredEvents = events.filter(e => {
-    const d = new Date(e.session_date);
-    const inMonth = d.getUTCFullYear() === currentYear && d.getUTCMonth() + 1 === currentMonth;
+    const { y, m } = parseLocalDate(e.session_date);
+    const inMonth = y === currentYear && m === currentMonth;
     const inRoom = selectedRoomId ? e.roomid === selectedRoomId : true;
     return inMonth && inRoom;
   });
 
   const eventsForDay = (day: number) =>
     filteredEvents
-      .filter(e => new Date(e.session_date).getUTCDate() === day)
-      .sort((a, b) => timeOrder(a.time) - timeOrder(b.time)); // 👈 sort by time
+      .filter(e => parseLocalDate(e.session_date).day === day)
+      .sort((a, b) => timeOrder(a.time) - timeOrder(b.time));
 
   const openAdd = (day: number) => { const d = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); };
   const openEdit = (ev: ScheduleEvent, e: React.MouseEvent) => { e.stopPropagation(); setSelectedEvent(ev); setEditOpen(true); };
@@ -364,10 +374,13 @@ export default function Schedules() {
             <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 shadow-sm">
               <FileDown className="w-4 h-4" />Xuất
             </button>
-            <button onClick={() => { const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#10b77f] text-white font-bold text-sm hover:translate-y-[-1px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-0 transition-all">
-              <Plus className="w-4 h-4" />Tạo lịch
-            </button>
+            {/* 👇 Chỉ admin mới thấy nút Tạo lịch */}
+            {isAdmin && (
+              <button onClick={() => { const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#10b77f] text-white font-bold text-sm hover:translate-y-[-1px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-0 transition-all">
+                <Plus className="w-4 h-4" />Tạo lịch
+              </button>
+            )}
           </div>
         </div>
 
@@ -385,8 +398,8 @@ export default function Schedules() {
           {rooms.map(r => {
             const isSelected = selectedRoomId === r._id;
             const roomEvCount = events.filter(e => {
-              const d = new Date(e.session_date);
-              return e.roomid === r._id && d.getUTCFullYear() === currentYear && d.getUTCMonth() + 1 === currentMonth;
+              const { y, m } = parseLocalDate(e.session_date);
+              return e.roomid === r._id && y === currentYear && m === currentMonth;
             }).length;
             return (
               <button key={r._id} onClick={() => setSelectedRoomId(isSelected ? null : r._id)}
@@ -449,9 +462,9 @@ export default function Schedules() {
 
                 return (
                   <div key={idx}
-                    onClick={() => isValid && openAdd(day)}
+                    onClick={() => isValid && isAdmin && openAdd(day)}
                     className={`border-b border-r border-slate-50 flex flex-col transition-colors
-                      ${!isValid ? 'bg-slate-50/40 cursor-default' : 'cursor-pointer group/cell'}
+                      ${!isValid ? 'bg-slate-50/40 cursor-default' : isAdmin ? 'cursor-pointer group/cell' : 'cursor-default group/cell'}
                       ${isValid && isWeekend ? 'bg-slate-50/60' : ''}
                       ${isValid && !isWeekend ? 'hover:bg-emerald-50/30' : ''}
                       ${todayCell ? '!bg-emerald-50/50' : ''}`}
@@ -467,10 +480,13 @@ export default function Schedules() {
                             ${!isWeekend && !todayCell ? 'text-slate-500 group-hover/cell:text-[#10b77f]' : ''}`}>
                             {day}
                           </span>
-                          <button onClick={e => { e.stopPropagation(); openAdd(day); }}
-                            className="opacity-0 group-hover/cell:opacity-100 transition-all p-1 hover:bg-emerald-100 rounded-lg scale-90 hover:scale-100">
-                            <Plus className="w-3 h-3 text-emerald-500" />
-                          </button>
+                          {/* 👇 Chỉ admin mới thấy nút + trên ô ngày */}
+                          {isAdmin && (
+                            <button onClick={e => { e.stopPropagation(); openAdd(day); }}
+                              className="opacity-0 group-hover/cell:opacity-100 transition-all p-1 hover:bg-emerald-100 rounded-lg scale-90 hover:scale-100">
+                              <Plus className="w-3 h-3 text-emerald-500" />
+                            </button>
+                          )}
                         </div>
 
                         {/* Event cards — sorted by time */}
@@ -514,15 +530,17 @@ export default function Schedules() {
                                   </div>
                                 </div>
 
-                                {/* Edit / Delete on hover */}
-                                <div className="absolute right-1 top-1 hidden group-hover/ev:flex gap-0.5 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-100 p-0.5 z-10">
-                                  <button onClick={e => openEdit(ev, e)} className="p-1.5 hover:bg-blue-50 rounded-md text-slate-400 hover:text-blue-600 transition-colors">
-                                    <Edit2 className="w-2.5 h-2.5" />
-                                  </button>
-                                  <button onClick={e => openDelete(ev, e)} className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors">
-                                    <Trash2 className="w-2.5 h-2.5" />
-                                  </button>
-                                </div>
+                                {/* 👇 Chỉ admin mới thấy Edit/Delete */}
+                                {isAdmin && (
+                                  <div className="absolute right-1 top-1 hidden group-hover/ev:flex gap-0.5 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-100 p-0.5 z-10">
+                                    <button onClick={e => openEdit(ev, e)} className="p-1.5 hover:bg-blue-50 rounded-md text-slate-400 hover:text-blue-600 transition-colors">
+                                      <Edit2 className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button onClick={e => openDelete(ev, e)} className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors">
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                )}
                               </motion.div>
                             );
                           })}
