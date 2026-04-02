@@ -357,8 +357,8 @@ export default function Schedules() {
       <div className="px-8 pt-7 pb-5 bg-white border-b border-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Quản lý lịch học</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Phân bổ giảng viên và phòng học tối ưu.</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Quản lý lịch học</h1>
+            <p className="mt-2 text-base text-slate-500">Phân bổ giảng viên và phòng học tối ưu.</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Month nav */}
