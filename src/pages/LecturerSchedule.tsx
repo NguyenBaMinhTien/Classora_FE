@@ -125,8 +125,8 @@ export default function LecturerSchedule() {
             {/* HEADER */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                 <div>
-                    <h2 className="text-4xl font-black text-slate-900">Lịch dạy của tôi</h2>
-                    <p className="text-slate-500 mt-2">Lịch giảng dạy theo tuần</p>
+                    <h2 className="text-3xl font-black text-slate-900">Lịch dạy của tôi</h2>
+                    <p className="mt-2 text-base text-slate-500">Lịch giảng dạy theo tuần</p>
                 </div>
 
                 {/* Week navigator */}

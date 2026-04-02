@@ -13,7 +13,7 @@ export default function Rooms() {
   // Modal states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogData, setDialogData] = useState<any>(null);
-  
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -92,8 +92,8 @@ export default function Rooms() {
     <div className="p-10 max-w-[1400px] mx-auto w-full space-y-10">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
         <div className="space-y-3">
-          <h2 className="text-4xl font-black tracking-tight text-slate-900">Quản lý Phòng học</h2>
-          <p className="text-slate-500 max-w-3xl text-lg leading-relaxed font-medium">
+          <h2 className="text-3xl font-black tracking-tight text-slate-900">Quản lý Phòng học</h2>
+          <p className="mt-2 text-base text-slate-500">
             Theo dõi tình trạng sử dụng, cơ sở vật chất và lịch trình của các phòng học trong toàn khuôn viên trường.
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function Rooms() {
           </table>
         </div>
       </div>
-      
+
       <LocationDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}

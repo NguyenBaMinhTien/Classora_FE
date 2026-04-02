@@ -77,8 +77,8 @@ export default function Courses() {
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
         <div className="space-y-3">
-          <h2 className="text-4xl font-black tracking-tight text-slate-900">Danh sách khóa học</h2>
-          <p className="text-slate-500 max-w-3xl text-lg leading-relaxed font-medium">
+          <h2 className="text-3xl font-black tracking-tight text-slate-900">Danh sách khóa học</h2>
+          <p className="mt-2 text-base text-slate-500">
             Hệ thống quản lý thông tin các môn học, tín chỉ và trạng thái vận hành của các học phần trong chương trình đào tạo.
           </p>
         </div>
