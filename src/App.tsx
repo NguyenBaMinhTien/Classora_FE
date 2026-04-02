@@ -7,10 +7,9 @@ import Lecturers from './pages/Lecturers';
 import Courses from './pages/Courses';
 import Schedules from './pages/Schedules';
 import Rooms from './pages/Rooms';
-import Profile from './pages/Profile';
 import LecturerSchedule from './pages/LecturerSchedule';
-import EditProfile from './pages/EditProfile';
 import Login from './pages/Login';
+import NotFound from './pages/NotFoundPage';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from 'react-hot-toast';
 
@@ -65,10 +64,8 @@ export default function App() {
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/schedule" element={<Schedules />} />
                 <Route path="/rooms" element={<Rooms />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/edit-profile" element={<EditProfile />} />
                 <Route path="/lecturer-schedule" element={<LecturerSchedule />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </motion.div>
           </AnimatePresence>

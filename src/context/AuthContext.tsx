@@ -1,4 +1,6 @@
+import { log } from "console";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // 👈 Mặc định true
   const [role, setRole] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -53,7 +56,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = (token: string) => {
     localStorage.setItem("accessToken", token);
     setIsAuthenticated(true);
-    setRole(getRoleFromToken(token));
+    const role = getRoleFromToken(token);
+    setRole(role);
+    if (role === "admin") {
+      navigate("/dashboard");
+    } else if (role === "teacher") {
+      navigate("/schedule");
+    }
   };
 
   const logout = () => {
