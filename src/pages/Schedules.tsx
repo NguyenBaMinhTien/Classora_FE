@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  ChevronLeft, ChevronRight, Plus, FileDown,
+  ChevronLeft, ChevronRight, Plus, FileDown, Upload,
   Edit2, Trash2, X, Clock, Loader2, MapPin, User, BookOpen,
   DoorOpen, Calendar,
 } from 'lucide-react';
@@ -250,6 +250,9 @@ export default function Schedules() {
   const today = new Date();
   const { role } = useAuth(); // 👈 Lấy role
   const isAdmin = role === 'admin'; // 👈 Kiểm tra admin
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null); // 👈 filter by room
@@ -283,6 +286,7 @@ export default function Schedules() {
     setIsLoadingEvents(true);
     try {
       const res = await api.get('/sessions');
+      console.log(res.data);
       if (res.data.success) {
         const mapped: ScheduleEvent[] = (res.data.data as Session[]).map((s, i) => ({
           _id: s._id, session_date: s.session_date, time: s.time,
@@ -346,6 +350,51 @@ export default function Schedules() {
 
   const selectedRoom = rooms.find(r => r._id === selectedRoomId);
 
+  // ── Import Excel ──
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post('/schedule/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Import lịch học thành công!');
+      await loadSessions();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Import thất bại. Kiểm tra lại file Excel.');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // ── Export PDF ──
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      const res = await api.post(
+        '/schedule/export',
+        { teacherIds: teachers.map(t => t._id) }, // xuất tất cả giảng viên
+        { responseType: 'blob' }
+      );
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `lich-hoc-${MONTH_NAMES[currentMonth - 1]}-${currentYear}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Xuất PDF thất bại.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full min-h-screen bg-[#f8fafc]">
 
@@ -371,8 +420,33 @@ export default function Schedules() {
               className="px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
               Hôm nay
             </button>
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 shadow-sm">
-              <FileDown className="w-4 h-4" />Xuất
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportExcel}
+            />
+
+            {/* Import Excel */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-200 bg-blue-50 font-bold text-sm text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              {importing ? 'Đang import...' : 'Import Excel'}
+            </button>
+
+            {/* Export PDF */}
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <FileDown className="w-4 h-4" />
+              {exporting ? 'Đang xuất...' : 'Xuất PDF'}
             </button>
             {/* 👇 Chỉ admin mới thấy nút Tạo lịch */}
             {isAdmin && (
