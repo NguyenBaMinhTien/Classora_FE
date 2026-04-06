@@ -7,9 +7,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext'; // 👈 Thêm
+import { useAuth } from '../context/AuthContext';
 
-// ─── Types ────────────────────────────────────────────────────
 interface Session {
   _id: string;
   session_date: string;
@@ -54,9 +53,14 @@ const COLORS: ScheduleEvent['color'][] = ['emerald', 'blue', 'violet', 'orange']
 const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const MONTH_NAMES = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 const colorFor = (idx: number): ScheduleEvent['color'] => COLORS[idx % COLORS.length];
+const timeOrder = (time: string) => TIME_SLOTS.indexOf(time) === -1 ? 99 : TIME_SLOTS.indexOf(time);
 
-// sort by time slot order
-const timeOrder = (time: string) => TIME_SLOTS.indexOf(time) ?? 99;
+// ✅ Parse date từ ISO string bằng slice — KHÔNG dùng new Date() để tránh lệch timezone
+// VD: "2026-06-01T17:00:00.000Z" → slice(0,10) → "2026-06-01" → {y:2026, m:6, day:1}
+const parseDateStr = (iso: string) => {
+  const [y, m, day] = iso.slice(0, 10).split('-').map(Number);
+  return { y, m, day };
+};
 
 // ─── Session Dialog ───────────────────────────────────────────
 interface SessionDialogProps {
@@ -79,7 +83,7 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
   useEffect(() => {
     setConflictError(null);
     if (editSession) {
-      setForm({ session_date: editSession.session_date?.slice(0, 10) ?? '', time: editSession.time, courseid: editSession.courseid, roomid: editSession.roomid, userid: editSession.userid });
+      setForm({ session_date: editSession.session_date.slice(0, 10), time: editSession.time, courseid: editSession.courseid, roomid: editSession.roomid, userid: editSession.userid });
     } else {
       setForm({ session_date: defaultDate ?? '', time: '', courseid: '', roomid: '', userid: '' });
     }
@@ -89,10 +93,8 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
     if (!form.session_date || !form.time) return null;
     const conflicts = existingEvents.filter(ev => {
       if (editSession && ev._id === editSession._id) return false;
-      // So sánh ngày bằng chuỗi "YYYY-MM-DD" để tránh lệch timezone
-      const evDateStr = ev.session_date.slice(0, 10);
-      const fmDateStr = form.session_date.slice(0, 10);
-      const sameDay = evDateStr === fmDateStr;
+      // ✅ So sánh bằng slice — không dùng new Date()
+      const sameDay = ev.session_date.slice(0, 10) === form.session_date;
       return sameDay && ev.time === form.time && (ev.roomid === form.roomid || ev.userid === form.userid);
     });
     if (!conflicts.length) return null;
@@ -137,28 +139,22 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
               </div>
               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X className="w-5 h-5" /></button>
             </div>
-
             <form onSubmit={handleSubmit} className="px-8 pb-8 pt-5 space-y-5">
-              {/* Conflict error */}
               {conflictError && (
                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                   className="px-4 py-3 bg-red-50 border border-red-200 rounded-2xl space-y-1">
-                  <p className="text-sm font-black text-red-600 flex items-center gap-2">⚠️ Trùng lịch học!</p>
+                  <p className="text-sm font-black text-red-600">⚠️ Trùng lịch học!</p>
                   {conflictError.split('\n').map((line, i) => (
                     <p key={i} className="text-xs text-red-500 font-semibold pl-1">• {line}</p>
                   ))}
                 </motion.div>
               )}
-
-              {/* Ngày */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5"><Calendar className="w-3 h-3" />Ngày học</label>
                 <input type="date" required value={form.session_date}
                   onChange={e => setForm(f => ({ ...f, session_date: e.target.value }))}
                   className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all" />
               </div>
-
-              {/* Khung giờ */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5"><Clock className="w-3 h-3" />Khung giờ</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -172,8 +168,6 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
                 </div>
                 <input type="text" required value={form.time} readOnly className="sr-only" />
               </div>
-
-              {/* Khóa học */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5"><BookOpen className="w-3 h-3" />Khóa học</label>
                 <select required value={form.courseid} onChange={e => setForm(f => ({ ...f, courseid: e.target.value }))}
@@ -182,8 +176,6 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
                   {courses.map(c => <option key={c._id} value={c._id}>{c.courseName}</option>)}
                 </select>
               </div>
-
-              {/* Phòng học */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5"><MapPin className="w-3 h-3" />Phòng học</label>
                 <select required value={form.roomid} onChange={e => setForm(f => ({ ...f, roomid: e.target.value }))}
@@ -192,8 +184,6 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
                   {rooms.map(r => <option key={r._id} value={r._id}>{r.room_name} — {r.location}</option>)}
                 </select>
               </div>
-
-              {/* Giảng viên */}
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5"><User className="w-3 h-3" />Giảng viên</label>
                 <select required value={form.userid} onChange={e => setForm(f => ({ ...f, userid: e.target.value }))}
@@ -202,7 +192,6 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
                   {teachers.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
                 </select>
               </div>
-
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all">Hủy</button>
                 <button type="submit" disabled={isLoading}
@@ -218,7 +207,6 @@ function SessionDialog({ isOpen, onClose, onSuccess, editSession, defaultDate, c
   );
 }
 
-// ─── Delete Dialog ────────────────────────────────────────────
 function DeleteDialog({ isOpen, onClose, onConfirm, isLoading }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; isLoading: boolean; }) {
   return (
     <AnimatePresence>
@@ -245,17 +233,17 @@ function DeleteDialog({ isOpen, onClose, onConfirm, isLoading }: { isOpen: boole
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────
 export default function Schedules() {
   const today = new Date();
-  const { role } = useAuth(); // 👈 Lấy role
-  const isAdmin = role === 'admin'; // 👈 Kiểm tra admin
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null); // 👈 filter by room
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -286,7 +274,6 @@ export default function Schedules() {
     setIsLoadingEvents(true);
     try {
       const res = await api.get('/sessions');
-      console.log(res.data);
       if (res.data.success) {
         const mapped: ScheduleEvent[] = (res.data.data as Session[]).map((s, i) => ({
           _id: s._id, session_date: s.session_date, time: s.time,
@@ -305,33 +292,23 @@ export default function Schedules() {
 
   useEffect(() => { loadSessions(); }, []);
 
-  // Calendar math
   const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
   const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
   const prevMonth = () => currentMonth === 1 ? (setCurrentMonth(12), setCurrentYear(y => y - 1)) : setCurrentMonth(m => m - 1);
   const nextMonth = () => currentMonth === 12 ? (setCurrentMonth(1), setCurrentYear(y => y + 1)) : setCurrentMonth(m => m + 1);
-
   const isToday = (day: number) => day === today.getDate() && currentMonth === today.getMonth() + 1 && currentYear === today.getFullYear();
 
-  // Filter events by selected room + current month
-  // Parse ISO date sang local time để tránh lệch timezone UTC+7
-  const parseLocalDate = (iso: string) => {
-    const d = new Date(iso);
-    return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() };
-  };
-
+  // ✅ Filter dùng parseDateStr (slice) — không dùng new Date()
   const filteredEvents = events.filter(e => {
-    const { y, m } = parseLocalDate(e.session_date);
-    const inMonth = y === currentYear && m === currentMonth;
-    const inRoom = selectedRoomId ? e.roomid === selectedRoomId : true;
-    return inMonth && inRoom;
+    const { y, m } = parseDateStr(e.session_date);
+    return y === currentYear && m === currentMonth && (selectedRoomId ? e.roomid === selectedRoomId : true);
   });
 
   const eventsForDay = (day: number) =>
     filteredEvents
-      .filter(e => parseLocalDate(e.session_date).day === day)
+      .filter(e => parseDateStr(e.session_date).day === day)
       .sort((a, b) => timeOrder(a.time) - timeOrder(b.time));
 
   const openAdd = (day: number) => { const d = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); };
@@ -348,69 +325,45 @@ export default function Schedules() {
     finally { setIsDeleting(false); }
   };
 
-  const selectedRoom = rooms.find(r => r._id === selectedRoomId);
-
-  // ── Import Excel ──
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setImporting(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.post('/schedule/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      toast.success('Import lịch học thành công!');
-      await loadSessions();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Import thất bại. Kiểm tra lại file Excel.');
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+      const formData = new FormData(); formData.append('file', file);
+      await api.post('/schedule/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success('Import lịch học thành công!'); await loadSessions();
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Import thất bại.'); }
+    finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  // ── Export PDF ──
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      const res = await api.post(
-        '/schedule/export',
-        { teacherIds: teachers.map(t => t._id) }, // xuất tất cả giảng viên
-        { responseType: 'blob' }
-      );
+      const res = await api.post('/schedule/export', { teacherIds: teachers.map(t => t._id) }, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
+      const link = document.createElement('a'); link.href = url;
       link.setAttribute('download', `lich-hoc-${MONTH_NAMES[currentMonth - 1]}-${currentYear}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Xuất PDF thất bại.');
-    } finally {
-      setExporting(false);
-    }
+      document.body.appendChild(link); link.click(); link.remove(); window.URL.revokeObjectURL(url);
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Xuất PDF thất bại.'); }
+    finally { setExporting(false); }
   };
+
+  const selectedRoom = rooms.find(r => r._id === selectedRoomId);
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-[#f8fafc]">
-
       <SessionDialog isOpen={addOpen} onClose={() => setAddOpen(false)} onSuccess={loadSessions} defaultDate={selectedDate} courses={courses} rooms={rooms} teachers={teachers} existingEvents={events} />
       <SessionDialog isOpen={editOpen} onClose={() => setEditOpen(false)} onSuccess={loadSessions} editSession={selectedEvent} courses={courses} rooms={rooms} teachers={teachers} existingEvents={events} />
       <DeleteDialog isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={handleDelete} isLoading={isDeleting} />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="px-8 pt-7 pb-5 bg-white border-b border-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">Quản lý lịch học</h1>
             <p className="mt-2 text-base text-slate-500">Phân bổ giảng viên và phòng học tối ưu.</p>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Month nav */}
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
               <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-xl transition-colors"><ChevronLeft className="w-4 h-4 text-slate-500" /></button>
               <span className="text-sm font-black text-slate-800 min-w-[130px] text-center">{MONTH_NAMES[currentMonth - 1]} {currentYear}</span>
@@ -420,35 +373,15 @@ export default function Schedules() {
               className="px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
               Hôm nay
             </button>
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleImportExcel}
-            />
-
-            {/* Import Excel */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-200 bg-blue-50 font-bold text-sm text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Upload className="w-4 h-4" />
-              {importing ? 'Đang import...' : 'Import Excel'}
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-200 bg-blue-50 font-bold text-sm text-blue-600 hover:bg-blue-100 transition-all shadow-sm disabled:opacity-60">
+              <Upload className="w-4 h-4" />{importing ? 'Đang import...' : 'Import Excel'}
             </button>
-
-            {/* Export PDF */}
-            <button
-              onClick={handleExportPDF}
-              disabled={exporting}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <FileDown className="w-4 h-4" />
-              {exporting ? 'Đang xuất...' : 'Xuất PDF'}
+            <button onClick={handleExportPDF} disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
+              <FileDown className="w-4 h-4" />{exporting ? 'Đang xuất...' : 'Xuất PDF'}
             </button>
-            {/* 👇 Chỉ admin mới thấy nút Tạo lịch */}
             {isAdmin && (
               <button onClick={() => { const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#10b77f] text-white font-bold text-sm hover:translate-y-[-1px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-0 transition-all">
@@ -458,65 +391,46 @@ export default function Schedules() {
           </div>
         </div>
 
-        {/* ── Room filter pills ── */}
+        {/* Room filter */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-black uppercase text-slate-400 tracking-widest mr-1 flex items-center gap-1.5">
-            <DoorOpen className="w-3.5 h-3.5" />Lọc phòng
-          </span>
-          {/* All rooms pill */}
+          <span className="text-[11px] font-black uppercase text-slate-400 tracking-widest mr-1 flex items-center gap-1.5"><DoorOpen className="w-3.5 h-3.5" />Lọc phòng</span>
           <button onClick={() => setSelectedRoomId(null)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border
-              ${!selectedRoomId ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'}`}>
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${!selectedRoomId ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'}`}>
             Tất cả phòng
           </button>
           {rooms.map(r => {
             const isSelected = selectedRoomId === r._id;
-            const roomEvCount = events.filter(e => {
-              const { y, m } = parseLocalDate(e.session_date);
-              return e.roomid === r._id && y === currentYear && m === currentMonth;
-            }).length;
+            // ✅ Dùng parseDateStr thay vì new Date()
+            const roomEvCount = events.filter(e => { const { y, m } = parseDateStr(e.session_date); return e.roomid === r._id && y === currentYear && m === currentMonth; }).length;
             return (
               <button key={r._id} onClick={() => setSelectedRoomId(isSelected ? null : r._id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border
-                  ${isSelected ? 'bg-[#10b77f] text-white border-[#10b77f] shadow-md shadow-emerald-500/20' : 'bg-white text-slate-500 border-slate-200 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50'}`}>
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${isSelected ? 'bg-[#10b77f] text-white border-[#10b77f] shadow-md shadow-emerald-500/20' : 'bg-white text-slate-500 border-slate-200 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50'}`}>
                 <span>{r.room_name}</span>
-                {roomEvCount > 0 && (
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
-                    {roomEvCount}
-                  </span>
-                )}
+                {roomEvCount > 0 && <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>{roomEvCount}</span>}
               </button>
             );
           })}
         </div>
 
-        {/* Selected room info bar */}
         {selectedRoom && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
             className="mt-3 flex items-center gap-3 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <DoorOpen className="w-4 h-4 text-emerald-600" />
-            </div>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center"><DoorOpen className="w-4 h-4 text-emerald-600" /></div>
             <div>
               <p className="text-sm font-black text-emerald-800">{selectedRoom.room_name}</p>
               <p className="text-xs text-emerald-600">{selectedRoom.location} · {filteredEvents.length} buổi học trong tháng</p>
             </div>
-            <button onClick={() => setSelectedRoomId(null)} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg transition-colors text-emerald-400">
-              <X className="w-4 h-4" />
-            </button>
+            <button onClick={() => setSelectedRoomId(null)} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg transition-colors text-emerald-400"><X className="w-4 h-4" /></button>
           </motion.div>
         )}
       </div>
 
-      {/* ── Calendar ── */}
+      {/* Calendar */}
       <div className="flex-1 p-5">
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full">
-
-          {/* Weekday headers */}
           <div className="grid grid-cols-7 bg-slate-50/80 border-b border-slate-100">
             {WEEKDAYS.map((d, i) => (
-              <div key={d} className={`py-3.5 text-center text-[11px] font-black uppercase tracking-widest
-                ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>{d}</div>
+              <div key={d} className={`py-3.5 text-center text-[11px] font-black uppercase tracking-widest ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>{d}</div>
             ))}
           </div>
 
@@ -533,7 +447,6 @@ export default function Schedules() {
                 const dayEvs = isValid ? eventsForDay(day) : [];
                 const isWeekend = idx % 7 === 0 || idx % 7 === 6;
                 const todayCell = isToday(day);
-
                 return (
                   <div key={idx}
                     onClick={() => isValid && isAdmin && openAdd(day)}
@@ -546,7 +459,6 @@ export default function Schedules() {
                   >
                     {isValid && (
                       <div className="p-2 flex flex-col gap-1 h-full">
-                        {/* Day number */}
                         <div className="flex items-center justify-between mb-0.5">
                           <span className={`text-xs font-black w-7 h-7 flex items-center justify-center rounded-full transition-all
                             ${todayCell ? 'bg-[#10b77f] text-white shadow-md shadow-emerald-500/30' : ''}
@@ -554,42 +466,26 @@ export default function Schedules() {
                             ${!isWeekend && !todayCell ? 'text-slate-500 group-hover/cell:text-[#10b77f]' : ''}`}>
                             {day}
                           </span>
-                          {/* 👇 Chỉ admin mới thấy nút + trên ô ngày */}
                           {isAdmin && (
-                            <button onClick={e => { e.stopPropagation(); openAdd(day); }}
-                              className="opacity-0 group-hover/cell:opacity-100 transition-all p-1 hover:bg-emerald-100 rounded-lg scale-90 hover:scale-100">
+                            <button onClick={e => { e.stopPropagation(); openAdd(day); }} className="opacity-0 group-hover/cell:opacity-100 transition-all p-1 hover:bg-emerald-100 rounded-lg scale-90 hover:scale-100">
                               <Plus className="w-3 h-3 text-emerald-500" />
                             </button>
                           )}
                         </div>
-
-                        {/* Event cards — sorted by time */}
                         <div className="flex flex-col gap-1">
                           {(selectedRoomId ? dayEvs : dayEvs.slice(0, 3)).map((ev, evIdx) => {
                             const c = COLOR_MAP[ev.color];
                             return (
                               <motion.div key={ev._id}
-                                initial={{ opacity: 0, scale: 0.97 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: evIdx * 0.03 }}
-                                className={`group/ev relative rounded-xl border-l-4 ${c.bg} ${c.border} overflow-hidden cursor-pointer
-                                  hover:shadow-md hover:scale-[1.01] transition-all`}
+                                initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: evIdx * 0.03 }}
+                                className={`group/ev relative rounded-xl border-l-4 ${c.bg} ${c.border} overflow-hidden cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all`}
                                 onClick={e => e.stopPropagation()}
                               >
                                 <div className={`px-2.5 py-2 ${selectedRoomId ? 'py-3' : ''}`}>
-                                  {/* Course name */}
-                                  <div className={`text-[10px] font-black truncate ${c.text} leading-tight`}>
-                                    {ev.courseName}
-                                  </div>
-
-                                  {/* Time badge */}
+                                  <div className={`text-[10px] font-black truncate ${c.text} leading-tight`}>{ev.courseName}</div>
                                   <div className={`flex items-center gap-1 mt-1 ${selectedRoomId ? 'mt-1.5' : ''}`}>
-                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${c.badge}`}>
-                                      {ev.time}
-                                    </span>
+                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${c.badge}`}>{ev.time}</span>
                                   </div>
-
-                                  {/* Teacher + Room — always shown when room filter active, else hidden */}
                                   <div className={`space-y-0.5 ${selectedRoomId ? 'mt-2' : 'mt-1'}`}>
                                     <div className="flex items-center gap-1 text-[9px] text-slate-500">
                                       <User className="w-2.5 h-2.5 flex-shrink-0 text-slate-400" />
@@ -603,27 +499,18 @@ export default function Schedules() {
                                     )}
                                   </div>
                                 </div>
-
-                                {/* 👇 Chỉ admin mới thấy Edit/Delete */}
                                 {isAdmin && (
                                   <div className="absolute right-1 top-1 hidden group-hover/ev:flex gap-0.5 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-100 p-0.5 z-10">
-                                    <button onClick={e => openEdit(ev, e)} className="p-1.5 hover:bg-blue-50 rounded-md text-slate-400 hover:text-blue-600 transition-colors">
-                                      <Edit2 className="w-2.5 h-2.5" />
-                                    </button>
-                                    <button onClick={e => openDelete(ev, e)} className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors">
-                                      <Trash2 className="w-2.5 h-2.5" />
-                                    </button>
+                                    <button onClick={e => openEdit(ev, e)} className="p-1.5 hover:bg-blue-50 rounded-md text-slate-400 hover:text-blue-600 transition-colors"><Edit2 className="w-2.5 h-2.5" /></button>
+                                    <button onClick={e => openDelete(ev, e)} className="p-1.5 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 transition-colors"><Trash2 className="w-2.5 h-2.5" /></button>
                                   </div>
                                 )}
                               </motion.div>
                             );
                           })}
-
-                          {/* More indicator (only when no room filter) */}
                           {!selectedRoomId && dayEvs.length > 3 && (
                             <div className="text-[10px] font-bold text-slate-400 pl-1 flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-slate-300" />
-                              +{dayEvs.length - 3} buổi khác
+                              <span className="w-1 h-1 rounded-full bg-slate-300" />+{dayEvs.length - 3} buổi khác
                             </div>
                           )}
                         </div>
