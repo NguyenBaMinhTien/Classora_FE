@@ -373,15 +373,20 @@ export default function Schedules() {
               className="px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
               Hôm nay
             </button>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={importing}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-200 bg-blue-50 font-bold text-sm text-blue-600 hover:bg-blue-100 transition-all shadow-sm disabled:opacity-60">
-              <Upload className="w-4 h-4" />{importing ? 'Đang import...' : 'Import Excel'}
-            </button>
-            <button onClick={handleExportPDF} disabled={exporting}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
-              <FileDown className="w-4 h-4" />{exporting ? 'Đang xuất...' : 'Xuất PDF'}
-            </button>
+            {/* 👇 Chỉ admin mới thấy Import/Export */}
+            {isAdmin && (
+              <>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-blue-200 bg-blue-50 font-bold text-sm text-blue-600 hover:bg-blue-100 transition-all shadow-sm disabled:opacity-60">
+                  <Upload className="w-4 h-4" />{importing ? 'Đang import...' : 'Import Excel'}
+                </button>
+                <button onClick={handleExportPDF} disabled={exporting}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
+                  <FileDown className="w-4 h-4" />{exporting ? 'Đang xuất...' : 'Xuất PDF'}
+                </button>
+              </>
+            )}
             {isAdmin && (
               <button onClick={() => { const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; setSelectedDate(d); setSelectedEvent(null); setAddOpen(true); }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#10b77f] text-white font-bold text-sm hover:translate-y-[-1px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-0 transition-all">
